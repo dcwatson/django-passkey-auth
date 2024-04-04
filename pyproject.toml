@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "django-passkey-auth"
+authors = [
+    {name = "Dan Watson", email = "dcwatson@gmail.com"},
+]
+description = "Passkey authentication for Django"
+readme = {file = "README.md", content-type = "text/markdown"}
+requires-python = ">=3.10"
+license = {text = "MIT License"}
+classifiers = [
+    "Framework :: Django",
+    "Programming Language :: Python :: 3",
+    "Development Status :: 3 - Alpha",
+]
+dependencies = [
+    "django>=4.2",
+    "cryptography",
+]
+dynamic = ["version"]
+
+[project.urls]
+Repository = "https://github.com/dcwatson/django-passkey-auth"
+
+[tool.setuptools.dynamic]
+version = {attr = "passkeys.__version__"}

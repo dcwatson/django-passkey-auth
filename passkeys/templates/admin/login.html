@@ -1,0 +1,20 @@
+{% extends "admin/login.html" %}
+
+{% load i18n static %}
+
+{% block extrahead %}
+    <script src="{% static 'passkeys/passkeys.js' %}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const row = document.querySelector(".submit-row");
+            const passkeyBtn = document.createElement("input");
+            passkeyBtn.type = "button";
+            passkeyBtn.value = "{% translate 'Passkey Login' %}";
+            passkeyBtn.addEventListener("click", function() {
+                authenticatePasskey('{% url "passkey-login" %}', '{% url "admin:index" %}');
+                return false;
+            });
+            row.appendChild(passkeyBtn);
+        });
+    </script>
+{% endblock %}

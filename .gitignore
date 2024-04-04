@@ -1,0 +1,10 @@
+*.pyc
+.DS_Store
+
+__pycache__
+.nova
+.vscode
+
+/build
+/dist
+*.egg-info
