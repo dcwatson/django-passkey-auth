@@ -1,3 +1,7 @@
+_Note that this is very much not a finished package. Consider it a tech demo, or a small
+proof of concept, and feel free to use it however you'd like, but I would not recommend
+using it in production as-is._
+
 # Installation
 
 1. `pip install django-passkey-auth`
