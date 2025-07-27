@@ -1,6 +1,6 @@
 [project]
 name = "django-passkey-auth"
-dynamic = ["version"]
+version = "0.0.3"
 authors = [
     {name = "Dan Watson", email = "dcwatson@gmail.com"},
 ]
@@ -22,18 +22,8 @@ dependencies = [
 Repository = "https://github.com/dcwatson/django-passkey-auth"
 
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["uv_build>=0.8.3,<0.9.0"]
+build-backend = "uv_build"
 
-[tool.rye]
-managed = true
-dev-dependencies = []
-
-[tool.hatch.metadata]
-allow-direct-references = true
-
-[tool.hatch.build.targets.wheel]
-packages = ["src/passkeys"]
-
-[tool.hatch.version]
-path = "src/passkeys/__init__.py"
+[tool.uv.build-backend]
+module-name = "passkeys"

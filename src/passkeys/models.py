@@ -21,9 +21,11 @@ class Passkey(models.Model):
         related_name="passkeys",
     )
     credential_id = models.CharField(max_length=100)
+    name = models.CharField(max_length=100, blank=True)
     algorithm = models.IntegerField(choices=COSEAlgorithm.choices)
     public_key = PublicKeyField()
     date_created = models.DateTimeField(default=timezone.now)
+    last_used = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         constraints = [
@@ -33,7 +35,7 @@ class Passkey(models.Model):
         ]
 
     def __str__(self):
-        return self.credential_id
+        return self.name or self.credential_id
 
     def verify(self, auth_data: bytes, client_data: bytes, signature: bytes):
         check_data = auth_data + hashlib.sha256(client_data).digest()

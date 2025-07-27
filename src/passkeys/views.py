@@ -8,6 +8,7 @@ from django.contrib.auth import get_user_model, login
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db import models
 from django.http import JsonResponse
+from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
@@ -115,5 +116,7 @@ class PasskeyLogin(View):
         user = User.objects.get(pk=user_id)
         cred = Passkey.objects.get(user=user, credential_id=data["id"])
         cred.verify(auth_data, client_data, sig_data)
+        cred.last_used = timezone.now()
+        cred.save(update_fields=["last_used"])
         login(request, user)
         return JsonResponse({"success": True})
