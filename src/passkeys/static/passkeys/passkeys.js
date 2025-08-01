@@ -25,14 +25,18 @@ async function registerPasskey(endpoint, redirect) {
     if (registerData.success && redirect) window.location = redirect;
 }
 
-async function authenticatePasskey(endpoint, redirect) {
+async function authenticatePasskey(endpoint, redirect, conditional = false) {
     const challengeResponse = await fetch(endpoint);
     const challengeData = await challengeResponse.json();
-    const creds = await navigator.credentials.get({
+    var options = {
         publicKey: {
             challenge: Uint8Array.from(challengeData.challenge),
         },
-    });
+    };
+    if (conditional) {
+        options.mediation = "conditional";
+    }
+    const creds = await navigator.credentials.get(options);
     const jsonBytes = new Uint8Array(creds.response.clientDataJSON);
     const authBytes = new Uint8Array(creds.response.authenticatorData);
     const sigBytes = new Uint8Array(creds.response.signature);
@@ -51,4 +55,16 @@ async function authenticatePasskey(endpoint, redirect) {
     });
     const responseData = await loginResponse.json();
     if (responseData.success && redirect) window.location = redirect;
+}
+
+async function maybeAuthenticate(endpoint, redirect) {
+    if (
+        window.PublicKeyCredential &&
+        PublicKeyCredential.isConditionalMediationAvailable
+    ) {
+        const cma = await PublicKeyCredential.isConditionalMediationAvailable();
+        if (cma) {
+            await authenticatePasskey(endpoint, redirect, true);
+        }
+    }
 }

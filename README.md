@@ -33,11 +33,20 @@ Login" button available on the admin login form.
     ```html
     <button onclick="authenticatePasskey('{% url "passkey-login" %}', '{% url "home" %}')">Passkey Login</button>
     ```
+* Add an autocomplete to your username field and call `maybeAuthenticate`:
+    ```html
+    <input type="text" name="username" autocomplete="username webauthn" autofocus />
+    <script>
+      maybeAuthenticate('{% url "passkey-login" %}', '{% url "home" %}');
+    </script>
+    ```
 
 ## Javascript functions
 
-The `passkeys.js` script contains two functions:
+The `passkeys.js` script contains three functions:
 
 ### `async function registerPasskey(endpoint, redirect)`
 
-### `async function authenticatePasskey(endpoint, redirect)`
+### `async function authenticatePasskey(endpoint, redirect, conditional = false)`
+
+#### `async function maybeAuthenticate(endpoint, redirect)`
