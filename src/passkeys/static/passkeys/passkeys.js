@@ -1,58 +1,36 @@
 async function registerPasskey(endpoint, redirect) {
     const optionsResponse = await fetch(endpoint);
-    var options = await optionsResponse.json();
-    options.challenge = Uint8Array.from(options.challenge);
-    options.user.id = Uint8Array.from(options.user.id);
+    const options = await optionsResponse.json();
+
     const creds = await navigator.credentials.create({
-        publicKey: options,
+        publicKey: PublicKeyCredential.parseCreationOptionsFromJSON(options),
     });
-    const clientJSONBytes = new Uint8Array(creds.response.clientDataJSON);
-    const keyBytes = new Uint8Array(creds.response.getPublicKey());
-    const authBytes = new Uint8Array(creds.response.getAuthenticatorData());
-    const passkeyData = {
-        id: creds.id,
-        algorithm: creds.response.getPublicKeyAlgorithm(),
-        publicKeyDer: btoa(String.fromCharCode(...keyBytes)),
-        clientData: btoa(String.fromCharCode(...clientJSONBytes)),
-        authData: btoa(String.fromCharCode(...authBytes)),
-    };
+
     const registerResponse = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(passkeyData),
+        body: JSON.stringify(creds),
     });
+
     const registerData = await registerResponse.json();
     if (registerData.success && redirect) window.location = redirect;
 }
 
-async function authenticatePasskey(endpoint, redirect, conditional = false) {
-    const challengeResponse = await fetch(endpoint);
-    const challengeData = await challengeResponse.json();
-    var options = {
-        publicKey: {
-            challenge: Uint8Array.from(challengeData.challenge),
-        },
-    };
-    if (conditional) {
-        options.mediation = "conditional";
-    }
-    const creds = await navigator.credentials.get(options);
-    const jsonBytes = new Uint8Array(creds.response.clientDataJSON);
-    const authBytes = new Uint8Array(creds.response.authenticatorData);
-    const sigBytes = new Uint8Array(creds.response.signature);
-    const userIdBytes = new Uint8Array(creds.response.userHandle);
-    const loginData = {
-        id: creds.id,
-        clientData: btoa(String.fromCharCode(...jsonBytes)),
-        authData: btoa(String.fromCharCode(...authBytes)),
-        signature: btoa(String.fromCharCode(...sigBytes)),
-        userId: btoa(String.fromCharCode(...userIdBytes)),
-    };
+async function authenticatePasskey(endpoint, redirect, mediation = "optional") {
+    const optionsResponse = await fetch(endpoint);
+    const options = await optionsResponse.json();
+
+    const creds = await navigator.credentials.get({
+        publicKey: PublicKeyCredential.parseRequestOptionsFromJSON(options),
+        mediation: mediation,
+    });
+
     const loginResponse = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(loginData),
+        body: JSON.stringify(creds),
     });
+
     const responseData = await loginResponse.json();
     if (responseData.success && redirect) window.location = redirect;
 }
@@ -64,7 +42,7 @@ async function maybeAuthenticate(endpoint, redirect) {
     ) {
         const cma = await PublicKeyCredential.isConditionalMediationAvailable();
         if (cma) {
-            await authenticatePasskey(endpoint, redirect, true);
+            await authenticatePasskey(endpoint, redirect, "conditional");
         }
     }
 }

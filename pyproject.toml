@@ -1,6 +1,6 @@
 [project]
 name = "django-passkey-auth"
-version = "0.0.4"
+version = "0.1.0"
 authors = [
     {name = "Dan Watson", email = "dcwatson@gmail.com"},
 ]
@@ -15,7 +15,7 @@ classifiers = [
 ]
 dependencies = [
     "django>=4.2",
-    "cryptography",
+    "fido2",
 ]
 
 [project.urls]

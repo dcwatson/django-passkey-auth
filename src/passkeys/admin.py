@@ -7,9 +7,8 @@ from .models import Passkey
 class PasskeyAdmin(admin.ModelAdmin):
     list_display = [
         "credential_id",
-        "name",
         "user",
-        "algorithm",
+        "name",
         "date_created",
         "last_used",
     ]

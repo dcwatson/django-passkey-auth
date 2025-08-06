@@ -15,6 +15,12 @@
                 return false;
             });
             row.appendChild(passkeyBtn);
+
+            const username = document.getElementById("id_username");
+            username.autocomplete = "username webauthn";
+            username.focus();
+
+            maybeAuthenticate('{% url "passkey-login" %}', '{% url "admin:index" %}');
         });
     </script>
 {% endblock %}
