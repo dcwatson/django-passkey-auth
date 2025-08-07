@@ -10,7 +10,8 @@ var Passkeys = (function () {
     }
 
     async function signalAccepted(info) {
-        if (PublicKeyCredential.signalAllAcceptedCredentials) {
+        // Seems to be bugged at the moment...
+        if (false && PublicKeyCredential.signalAllAcceptedCredentials) {
             await PublicKeyCredential.signalAllAcceptedCredentials({
                 rpId: info.rpId,
                 userId: info.userId,
