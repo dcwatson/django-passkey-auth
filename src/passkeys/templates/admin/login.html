@@ -5,13 +5,17 @@
 {% block extrahead %}
     <script src="{% static 'passkeys/passkeys.js' %}"></script>
     <script>
+        Passkeys.init({
+            endpoint: "{% url 'passkey-info' %}",
+            redirect: "{% url 'admin:index' %}",
+        });
         document.addEventListener('DOMContentLoaded', function() {
             const row = document.querySelector(".submit-row");
             const passkeyBtn = document.createElement("input");
             passkeyBtn.type = "button";
             passkeyBtn.value = "{% translate 'Passkey Login' %}";
             passkeyBtn.addEventListener("click", function() {
-                authenticatePasskey('{% url "passkey-login" %}', '{% url "admin:index" %}');
+                Passkeys.authenticate();
                 return false;
             });
             row.appendChild(passkeyBtn);
@@ -20,7 +24,7 @@
             username.autocomplete = "username webauthn";
             username.focus();
 
-            maybeAuthenticate('{% url "passkey-login" %}', '{% url "admin:index" %}');
+            Passkeys.autofill();
         });
     </script>
 {% endblock %}

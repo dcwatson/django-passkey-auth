@@ -4,9 +4,15 @@
 
 {% block extrahead %}
     <script src="{% static 'passkeys/passkeys.js' %}"></script>
+    <script>
+        Passkeys.init({
+            endpoint: "{% url 'passkey-info' %}",
+            redirect: "{% url 'admin:index' %}",
+        });
+    </script>
 {% endblock %}
 
 {% block userlinks %}
-    <a href="" onclick="registerPasskey('{% url 'passkey-register' %}', '{% url 'admin:index' %}'); return false;">{% translate 'Register Passkey' %}</a> /
+    <a href="" onclick="Passkeys.register(); return false;">{% translate 'Register Passkey' %}</a> /
     {{ block.super }}
 {% endblock %}

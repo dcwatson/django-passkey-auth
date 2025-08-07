@@ -1,74 +1,141 @@
-async function registerPasskey(endpoint, redirect) {
-    const optionsResponse = await fetch(endpoint);
-    const options = await optionsResponse.json();
+var Passkeys = (function () {
+    var defaults = {
+        endpoint: "/auth/passkey/",
+        redirect: "/",
+    };
 
-    const creds = await navigator.credentials.create({
-        publicKey: PublicKeyCredential.parseCreationOptionsFromJSON(options),
-    });
+    async function fetchJSON(url, options) {
+        const response = await fetch(url, options);
+        return await response.json();
+    }
 
-    const registerResponse = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(creds),
-    });
-
-    const registerData = await registerResponse.json();
-    if (registerData.success) {
-        // TODO: signalAllAcceptedCredentials never resolves in Safari Tech Preview...
-        if (false && PublicKeyCredential.signalAllAcceptedCredentials) {
+    async function signalAccepted(info) {
+        if (PublicKeyCredential.signalAllAcceptedCredentials) {
             await PublicKeyCredential.signalAllAcceptedCredentials({
-                rpId: options.rp.id,
-                userId: options.user.id,
-                allAcceptedCredentialIds: registerData.credentials,
+                rpId: info.rpId,
+                userId: info.userId,
+                allAcceptedCredentialIds: info.credentials,
             });
         }
-        if (redirect) window.location = redirect;
     }
-}
 
-async function authenticatePasskey(endpoint, redirect, mediation = "optional") {
-    const optionsResponse = await fetch(endpoint);
-    const options = await optionsResponse.json();
-
-    const creds = await navigator.credentials.get({
-        publicKey: PublicKeyCredential.parseRequestOptionsFromJSON(options),
-        mediation: mediation,
-    });
-
-    const loginResponse = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(creds),
-    });
-
-    const responseData = await loginResponse.json();
-    if (responseData.success) {
-        // TODO: signalAllAcceptedCredentials never resolves in Safari Tech Preview...
-        if (false && PublicKeyCredential.signalAllAcceptedCredentials) {
-            await PublicKeyCredential.signalAllAcceptedCredentials({
-                rpId: options.rpId,
-                userId: responseData.userId,
-                allAcceptedCredentialIds: responseData.credentials,
+    async function signalDetails(info) {
+        if (PublicKeyCredential.signalCurrentUserDetails) {
+            await PublicKeyCredential.signalCurrentUserDetails({
+                rpId: info.rpId,
+                userId: info.userId,
+                name: info.userName,
+                displayName: info.userDisplay,
             });
         }
-        if (redirect) window.location = redirect;
     }
-    else if (PublicKeyCredential.signalUnknownCredential) {
-        await PublicKeyCredential.signalUnknownCredential({
-            rpId: options.rpId,
-            credentialId: creds.id,
-        });
-    }
-}
 
-async function maybeAuthenticate(endpoint, redirect) {
-    if (
-        window.PublicKeyCredential &&
-        PublicKeyCredential.isConditionalMediationAvailable
-    ) {
-        const cma = await PublicKeyCredential.isConditionalMediationAvailable();
-        if (cma) {
-            await authenticatePasskey(endpoint, redirect, "conditional");
-        }
-    }
-}
+    // Public interface
+    return {
+        init: function (options) {
+            if (options) {
+                if (options.endpoint) defaults.endpoint = options.endpoint;
+                if (options.redirect) defaults.redirect = options.redirect;
+            }
+        },
+
+        register: async function (options = {}) {
+            const opts = Object.assign(
+                {},
+                defaults,
+                { endpoint: defaults.endpoint + "register/" },
+                event && event.target ? event.target.dataset : {},
+                options,
+            );
+
+            // Fetch the registration options and create the credential locally.
+            const createOpts = await fetchJSON(opts.endpoint);
+            const creds = await navigator.credentials.create({
+                publicKey: PublicKeyCredential.parseCreationOptionsFromJSON(createOpts),
+            });
+
+            const registerData = await fetchJSON(opts.endpoint, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(creds),
+            });
+
+            if (registerData.success) {
+                await signalAccepted(registerData);
+                if (opts.redirect) window.location = opts.redirect;
+            }
+
+            return false;
+        },
+
+        authenticate: async function (options = {}) {
+            const opts = Object.assign(
+                {},
+                defaults,
+                { endpoint: defaults.endpoint + "login/" },
+                event && event.target ? event.target.dataset : {},
+                options,
+            );
+
+            // Fetch the authentication challenge and find the local credential.
+            const authOpts = await fetchJSON(opts.endpoint);
+            const creds = await navigator.credentials.get({
+                publicKey: PublicKeyCredential.parseRequestOptionsFromJSON(authOpts),
+                mediation: opts.mediation || "optional",
+            });
+
+            const responseData = await fetchJSON(opts.endpoint, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(creds),
+            });
+
+            if (responseData.success) {
+                await signalAccepted(responseData);
+                if (opts.redirect) window.location = opts.redirect;
+            } else if (PublicKeyCredential.signalUnknownCredential) {
+                await PublicKeyCredential.signalUnknownCredential({
+                    rpId: authOpts.rpId,
+                    credentialId: creds.id,
+                });
+            }
+
+            return false;
+        },
+
+        autofill: async function (options = {}) {
+            if (
+                window.PublicKeyCredential &&
+                PublicKeyCredential.isConditionalMediationAvailable
+            ) {
+                const cma = await PublicKeyCredential.isConditionalMediationAvailable();
+                if (cma) {
+                    const newOpts = Object.assign(
+                        {},
+                        { mediation: "conditional" },
+                        options,
+                    );
+                    await this.authenticate(newOpts);
+                }
+            }
+        },
+
+        update: async function (options = {}) {
+            const opts = Object.assign(
+                {},
+                defaults,
+                event && event.target ? event.target.dataset : {},
+                options,
+            );
+
+            // Fetch the authentication challenge and find the local credential.
+            const info = await fetchJSON(opts.endpoint);
+            if (info.userId) {
+                // Specify to the browser which credentials the server accepts.
+                await signalAccepted(info);
+                // Specify the current user name/display to the browser.
+                await signalDetails(info);
+            }
+        },
+    };
+})();

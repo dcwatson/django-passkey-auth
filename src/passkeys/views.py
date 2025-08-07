@@ -1,20 +1,31 @@
+from django.conf import settings
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpRequest, JsonResponse
 from django.views.generic import View
 
-from .utils import base64url_encode, get_backend, pk_bytes
+from .utils import get_backend
 
 
 class PasskeyView(View):
     def dispatch(self, request: HttpRequest, *args, **kwargs):
+        params = {"indent": 4} if settings.DEBUG else {}
         try:
             self.backend = get_backend(request)
             response = super().dispatch(request, *args, **kwargs)
             if isinstance(response, dict):
-                return JsonResponse(response)
+                return JsonResponse(response, json_dumps_params=params)
             return response
         except Exception as e:
-            return JsonResponse({"success": False, "error": str(e)}, status=400)
+            return JsonResponse(
+                {"success": False, "error": str(e)},
+                json_dumps_params=params,
+                status=400,
+            )
+
+
+class PasskeyInfo(PasskeyView):
+    def get(self, request):
+        return self.backend.get_info()
 
 
 class PasskeyRegister(LoginRequiredMixin, PasskeyView):
@@ -25,7 +36,8 @@ class PasskeyRegister(LoginRequiredMixin, PasskeyView):
         passkey = self.backend.register_finish()
         return {
             "success": True,
-            "credentials": [pk.credential_id for pk in passkey.user.passkeys.all()],
+            "id": passkey.credential_id,
+            **self.backend.get_info(),
         }
 
 
@@ -37,6 +49,6 @@ class PasskeyLogin(PasskeyView):
         passkey = self.backend.auth_finish()
         return {
             "success": True,
-            "userId": base64url_encode(pk_bytes(passkey.user.pk)),
-            "credentials": [pk.credential_id for pk in passkey.user.passkeys.all()],
+            "id": passkey.credential_id,
+            **self.backend.get_info(),
         }

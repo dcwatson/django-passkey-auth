@@ -31,8 +31,12 @@ class PasskeyBackend:
         return getattr(settings, "PASSKEY_SITE_NAME", self.origin)
 
     @property
-    def session_key(self):
-        return getattr(settings, "PASSKEY_SESSION_KEY", "_passkey")
+    def session_state_key(self):
+        return getattr(settings, "PASSKEY_STATE_KEY", "_passkey_state")
+
+    @property
+    def session_current_key(self):
+        return getattr(settings, "PASSKEY_CURRENT_KEY", "_passkey")
 
     @property
     def user(self):
@@ -43,6 +47,10 @@ class PasskeyBackend:
         return pk_bytes(self.user.pk)
 
     @property
+    def user_id(self):
+        return base64url_encode(self.user_bytes)
+
+    @property
     def user_name(self):
         return self.user.get_username()
 
@@ -50,11 +58,46 @@ class PasskeyBackend:
     def user_display(self):
         return str(self.user)
 
-    def set_state(self, state):
-        self.request.session[self.session_key] = state
+    @property
+    def is_authenticated(self):
+        return self.user.is_authenticated
 
-    def pop_state(self):
-        return self.request.session.pop(self.session_key, None)
+    @property
+    def credential_ids(self):
+        if not self.is_authenticated:
+            return []
+        return [pk.credential_id for pk in Passkey.objects.filter(user=self.user)]
+
+    @property
+    def current_passkey(self) -> Passkey | None:
+        if cred_id := self.get(self.session_current_key):
+            return Passkey.objects.filter(user=self.user, credential_id=cred_id).first()
+
+    def get(self, key, default=None):
+        """Interface for getting data from the request session."""
+        return self.request.session.get(key, default)
+
+    def set(self, key, value):
+        """Interface for setting data in the request session."""
+        self.request.session[key] = value
+
+    def pop(self, key, default=None):
+        """Interface for popping data from the request session."""
+        return self.request.session.pop(key, default)
+
+    def get_info(self) -> dict:
+        info: dict = {"rpId": self.server.rp.id}
+        if self.is_authenticated:
+            info.update(
+                {
+                    "userId": self.user_id,
+                    "userName": self.user_name,
+                    "userDisplay": self.user_display,
+                    "credentials": self.credential_ids,
+                    "currentCredential": self.get(self.session_current_key),
+                }
+            )
+        return info
 
     def register_start(self):
         options, state = self.server.register_begin(
@@ -64,12 +107,12 @@ class PasskeyBackend:
                 display_name=self.user_display,
             )
         )
-        self.set_state(state)
+        self.set(self.session_state_key, state)
         return dict(options.public_key)
 
     def register_finish(self) -> Passkey:
         auth_data = self.server.register_complete(
-            self.pop_state(),
+            self.pop(self.session_state_key),
             json.loads(self.request.body),
         )
         if cred := auth_data.credential_data:
@@ -82,7 +125,7 @@ class PasskeyBackend:
 
     def auth_start(self) -> dict:
         options, state = self.server.authenticate_begin()
-        self.set_state(state)
+        self.set(self.session_state_key, state)
         return dict(options.public_key)
 
     def auth_finish(self) -> Passkey:
@@ -93,11 +136,12 @@ class PasskeyBackend:
             credential_id=data["id"],
         )
         self.server.authenticate_complete(
-            self.pop_state(),
+            self.pop(self.session_state_key),
             [AttestedCredentialData(passkey.credential_data)],
             data,
         )
         passkey.last_used = timezone.now()
         passkey.save(update_fields=["last_used"])
         auth.login(self.request, passkey.user)
+        self.set(self.session_current_key, passkey.credential_id)
         return passkey
