@@ -33,7 +33,7 @@ The next time you log into the admin, a "Register Passkey" link will be availabl
     ```html
     <button data-redirect="{{ redir }}" onclick="Passkeys.authenticate()">Passkey Login</button>
     ```
-* Add an autocomplete to your username field and call `maybeAuthenticate`:
+* Add an autocomplete to your username field and call `autofill`:
     ```html
     <input type="text" name="username" autocomplete="username webauthn" autofocus />
     <script>
