@@ -13,7 +13,17 @@ async function registerPasskey(endpoint, redirect) {
     });
 
     const registerData = await registerResponse.json();
-    if (registerData.success && redirect) window.location = redirect;
+    if (registerData.success) {
+        // TODO: signalAllAcceptedCredentials never resolves in Safari Tech Preview...
+        if (false && PublicKeyCredential.signalAllAcceptedCredentials) {
+            await PublicKeyCredential.signalAllAcceptedCredentials({
+                rpId: options.rp.id,
+                userId: options.user.id,
+                allAcceptedCredentialIds: registerData.credentials,
+            });
+        }
+        if (redirect) window.location = redirect;
+    }
 }
 
 async function authenticatePasskey(endpoint, redirect, mediation = "optional") {
@@ -32,7 +42,23 @@ async function authenticatePasskey(endpoint, redirect, mediation = "optional") {
     });
 
     const responseData = await loginResponse.json();
-    if (responseData.success && redirect) window.location = redirect;
+    if (responseData.success) {
+        // TODO: signalAllAcceptedCredentials never resolves in Safari Tech Preview...
+        if (false && PublicKeyCredential.signalAllAcceptedCredentials) {
+            await PublicKeyCredential.signalAllAcceptedCredentials({
+                rpId: options.rpId,
+                userId: responseData.userId,
+                allAcceptedCredentialIds: responseData.credentials,
+            });
+        }
+        if (redirect) window.location = redirect;
+    }
+    else if (PublicKeyCredential.signalUnknownCredential) {
+        await PublicKeyCredential.signalUnknownCredential({
+            rpId: options.rpId,
+            credentialId: creds.id,
+        });
+    }
 }
 
 async function maybeAuthenticate(endpoint, redirect) {

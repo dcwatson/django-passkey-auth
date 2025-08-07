@@ -1,24 +1,19 @@
 import base64
 import binascii
 import uuid
+from typing import TYPE_CHECKING, Any
 
 from django.conf import settings
+from django.contrib import auth
 from django.db import models
 from django.http import HttpRequest
-from fido2.server import Fido2Server
-from fido2.webauthn import (
-    PublicKeyCredentialRpEntity,
-)
+from django.utils.module_loading import import_string
+
+if TYPE_CHECKING:
+    from .backend import PasskeyBackend
 
 
-def get_server(request: HttpRequest) -> Fido2Server:
-    origin = request.get_host().split(":")[0]
-    site_name = getattr(settings, "PASSKEY_SITE_NAME", origin)
-    rp = PublicKeyCredentialRpEntity(name=site_name, id=origin)
-    return Fido2Server(rp)
-
-
-def pk_bytes(obj) -> bytes:
+def pk_bytes(obj: Any) -> bytes:
     """
     Given a primary key value, return its bytestring representation.
     """
@@ -29,11 +24,13 @@ def pk_bytes(obj) -> bytes:
     return str(obj).encode("utf-8")
 
 
-def pk_value(model, data: bytes):
+def pk_value(data: bytes, model=None):
     """
-    Given a model class, parse the specified bytestring into an appropriate primary key
-    value for the model.
+    Parse the specified bytestring into an appropriate primary key value for the
+    given model (or the auth user model if none is specified).
     """
+    if model is None:
+        model = auth.get_user_model()
     field = model._meta.pk
     if isinstance(field, models.IntegerField):
         return int.from_bytes(data)
@@ -53,3 +50,10 @@ def base64url_decode(data: str) -> bytes:
         except binascii.Error:
             pass
     raise ValueError("Could not base64url_decode `{data}`")
+
+
+def get_backend(request: HttpRequest) -> "PasskeyBackend":
+    backend_class = import_string(
+        getattr(settings, "PASSKEY_BACKEND", "passkeys.backend.PasskeyBackend")
+    )
+    return backend_class(request)
